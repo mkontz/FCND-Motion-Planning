@@ -51,10 +51,14 @@ class Action(Enum):
     is the cost of performing the action.
     """
 
-    WEST = (0, -1, 1)
-    EAST = (0, 1, 1)
-    NORTH = (-1, 0, 1)
-    SOUTH = (1, 0, 1)
+    WEST = (0, -1, 1.)
+    EAST = (0, 1, 1.)
+    NORTH = (-1, 0, 1.)
+    SOUTH = (1, 0, 1.)
+    NORTHWEST = (-1, -1, 2.**0.5)
+    NORTHEAST = (-1, 1, 2.**0.5)
+    SOUTHWEST = (1, -1, 2.**0.5)
+    SOUTHEAST = (1, 1, 2.**0.5)
 
     @property
     def cost(self):
@@ -75,15 +79,12 @@ def valid_actions(grid, current_node):
 
     # check if the node is off the grid or
     # it's an obstacle
-
-    if x - 1 < 0 or grid[x - 1, y] == 1:
-        valid_actions.remove(Action.NORTH)
-    if x + 1 > n or grid[x + 1, y] == 1:
-        valid_actions.remove(Action.SOUTH)
-    if y - 1 < 0 or grid[x, y - 1] == 1:
-        valid_actions.remove(Action.WEST)
-    if y + 1 > m or grid[x, y + 1] == 1:
-        valid_actions.remove(Action.EAST)
+    
+    for action in valid_actions:
+        # get the tuple representation
+        da = action.delta
+        if x + da[0] < 0 or x + da[0] > n or y + da[1] < 0 or y + da[1] > m or grid[x + da[0], y + da[1]] == 1:
+            valid_actions.remove(action)
 
     return valid_actions
 
