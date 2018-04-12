@@ -145,3 +145,35 @@ def a_star(grid, h, start, goal):
 def heuristic(position, goal_position):
     return np.linalg.norm(np.array(position) - np.array(goal_position))
 
+
+    
+def prune_path(path):
+    if len(path) < 3:
+        # if the path is less than 3 points, then there is nothign to prune....
+        return path
+        
+    # start new path list with first (start) point    
+    new_path = []
+    new_path.append(path[0])
+    
+    dx_last = path[1][0] - path[0][0]
+    dy_last = path[1][1] - path[0][1]
+    
+    # check if intermediate points are elbows/turns
+    for k in range(1,len(path)-1):
+        dx = path[k + 1][0] - path[k][0]
+        dy = path[k + 1][1] - path[k][1]
+        if dx_last != dx or dy_last!= dy:
+            # this is an elbow/turn, append point to new path list
+            dx_last = dx
+            dy_last = dy
+            new_path.append(path[k])
+     
+    # add last points to new path list
+    new_path.append(path[-1])
+    
+    return new_path
+    
+    
+    
+    

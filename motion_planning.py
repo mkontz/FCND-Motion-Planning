@@ -5,11 +5,11 @@ from enum import Enum, auto
 
 import numpy as np
 
-from planning_utils import a_star, heuristic, create_grid
+from planning_utils import a_star, heuristic, create_grid, prune_path
 from udacidrone import Drone
 from udacidrone.connection import MavlinkConnection
 from udacidrone.messaging import MsgID
-from udacidrone.frame_utils import global_to_local
+from udacidrone.frame_utils import global_to_local, local_to_global
 
 
 class States(Enum):
@@ -121,11 +121,21 @@ class MotionPlanning(Drone):
 
         # TODO: read lat0, lon0 from colliders into floating point values
         
+        with open('colliders.csv') as fn:
+            line1 = fn.readline().rstrip()
+        lat0 = float(line1.split(' ')[1].rstrip(','))
+        lon0 = float(line1.split(' ')[3])
+            
+        #print('lon0: ' + str(lon0) + ', lat0: ' + str(lat0))       
+        
         # TODO: set home position to (lon0, lat0, 0)
+        self.set_home_position(lon0, lat0, 0.0)
 
         # TODO: retrieve current global position
+        global_position = self.global_position
  
         # TODO: convert to current local position using global_to_local()
+        local_position = global_to_local(self.global_position, self.global_home)
         
         print('global home {0}, position {1}, local position {2}'.format(self.global_home, self.global_position,
                                                                          self.local_position))
@@ -138,17 +148,74 @@ class MotionPlanning(Drone):
         # Define starting point on the grid (this is just grid center)
         grid_start = (-north_offset, -east_offset)
         # TODO: convert start position to current position rather than map center
+        grid_start = (int(local_position[0] - north_offset), int(local_position[1] - east_offset))
+        
         
         # Set goal as some arbitrary position on the grid
-        grid_goal = (-north_offset + 10, -east_offset + 10)
+        grid_goal = (-north_offset - 250, -east_offset +400)
+        # print(grid_goal)
+        
         # TODO: adapt to set goal as latitude / longitude position and convert
+        
+        # Create global lat and long from grid
+        # grid_goal = (10, 10)
+        local_goal = (grid_goal[0] + north_offset, grid_goal[1] + east_offset, 0.0)
+        global_goal = local_to_global(local_goal, self.global_home)
+        print(grid_goal)
+        print(local_goal)
+        print(global_goal)
+        goal_lon = global_goal[0]
+        goal_lat = global_goal[1]
+        
+        # enter goal lat & long manually
+        # goal_lon = -122.4
+        # goal_lat = 37.8
+        
+        global_goal = (goal_lon, goal_lat, 0)
+        local_goal = global_to_local(global_goal, self.global_home)
+        #grid_goal = (int(round(local_goal[0] - north_offset)), int(round(local_goal[1] - east_offset)))
+        
+        # ensure that goal in actually located on the grid, choose to closest grid location
+        n, m = grid.shape[0] - 1, grid.shape[1] - 1
+        if grid_goal[0] < 0:
+            grid_goal = (0, grid_goal[1])
+            print('Limiting grid to 0 in Northing direction')
+        elif n <= grid_goal[0]:
+            grid_goal = (n - 1, grid_goal[1])
+            print('Limiting grid to n-1 in Northing direction')
+        
+        if grid_goal[1] < 0:
+            grid_goal = (grid_goal[0], 0)
+            print('Limiting grid to 0 in Easting direction')
+        elif m <= grid_goal[1]:
+            grid_goal = (grid_goal[0], m - 1)
+            print('Limiting grid to m-1 in Easting direction')
+                
+        print(grid_goal)
+        
 
         # Run A* to find a path from start to goal
         # TODO: add diagonal motions with a cost of sqrt(2) to your A* implementation
         # or move to a different search space such as a graph (not done here)
         print('Local Start and Goal: ', grid_start, grid_goal)
         path, _ = a_star(grid, heuristic, grid_start, grid_goal)
+        
+        print(path)
+        
+        #
+        # modified methods valid_actions and Actions enum in planning_utils.py to allow diagonal moves with correct cost
+        #
+        
         # TODO: prune path to minimize number of waypoints
+        
+        #
+        # Added method in planning_utils.py to prune path
+        # 
+        
+        path = prune_path(path)
+        
+        print(path)
+        
         # TODO (if you're feeling ambitious): Try a different approach altogether!
 
         # Convert path to waypoints
