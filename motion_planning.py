@@ -5,7 +5,7 @@ from enum import Enum, auto
 
 import numpy as np
 
-from planning_utils import a_star, heuristic, create_grid, prune_path
+from planning_utils import a_star, heuristic, create_grid, combine_segments_colinear, combine_segments_bresenham
 from udacidrone import Drone
 from udacidrone.connection import MavlinkConnection
 from udacidrone.messaging import MsgID
@@ -150,30 +150,34 @@ class MotionPlanning(Drone):
         # TODO: convert start position to current position rather than map center
         grid_start = (int(local_position[0] - north_offset), int(local_position[1] - east_offset))
         
+        # # TODO: adapt to set goal as latitude / longitude position and convert
+                
+        # enter goal lat & long manually from prior knowledge or exploring city
         
-        # Set goal as some arbitrary position on the grid
-        grid_goal = (-north_offset - 250, -east_offset +400)
-        # print(grid_goal)
+        goal_lon = -122.398524
+        goal_lat = 37.792448
+     
+        # goal_lon = -122.398792
+        # goal_lat = 37.791392
         
-        # TODO: adapt to set goal as latitude / longitude position and convert
+        # goal_lon = -122.398745
+        # goal_lat = 37.790754
         
-        # Create global lat and long from grid
-        # grid_goal = (10, 10)
-        local_goal = (grid_goal[0] + north_offset, grid_goal[1] + east_offset, 0.0)
-        global_goal = local_to_global(local_goal, self.global_home)
-        print(grid_goal)
-        print(local_goal)
-        print(global_goal)
-        goal_lon = global_goal[0]
-        goal_lat = global_goal[1]
+        # goal_lon = -122.392833
+        # goal_lat = 37.792932
+
+        # goal_lon = -122.396003
+        # goal_lat = 37.795239
         
-        # enter goal lat & long manually
-        # goal_lon = -122.4
-        # goal_lat = 37.8
+        # goal_lon = -122.401192
+        # goal_lat = 37.790276
+        
+        # goal_lon = -122.392737
+        # goal_lat = 37.793140
         
         global_goal = (goal_lon, goal_lat, 0)
         local_goal = global_to_local(global_goal, self.global_home)
-        #grid_goal = (int(round(local_goal[0] - north_offset)), int(round(local_goal[1] - east_offset)))
+        grid_goal = (int(round(local_goal[0] - north_offset)), int(round(local_goal[1] - east_offset)))
         
         # ensure that goal in actually located on the grid, choose to closest grid location
         n, m = grid.shape[0] - 1, grid.shape[1] - 1
@@ -190,8 +194,10 @@ class MotionPlanning(Drone):
         elif m <= grid_goal[1]:
             grid_goal = (grid_goal[0], m - 1)
             print('Limiting grid to m-1 in Easting direction')
-                
-        print(grid_goal)
+                          
+        #print(global_goal)  
+        #print(local_goal)      
+        #print(grid_goal)
         
 
         # Run A* to find a path from start to goal
@@ -200,7 +206,13 @@ class MotionPlanning(Drone):
         print('Local Start and Goal: ', grid_start, grid_goal)
         path, _ = a_star(grid, heuristic, grid_start, grid_goal)
         
-        print(path)
+        #print("Path before pruning")
+        #print(path)
+        
+        for p in path:
+            if grid[p[0], p[1]] == 1:
+                print("Raw path collides with obstacle!!")
+        
         
         #
         # modified methods valid_actions and Actions enum in planning_utils.py to allow diagonal moves with correct cost
@@ -209,12 +221,19 @@ class MotionPlanning(Drone):
         # TODO: prune path to minimize number of waypoints
         
         #
-        # Added method in planning_utils.py to prune path
+        # Added method in planning_utils.py to prune path by combining colinear segmetns
         # 
         
-        path = prune_path(path)
+        #print("Path after combining colinear lines")
+        path = combine_segments_colinear(path)
+        #print(path)
+        #
+        # Added method in planning_utils.py to prune path using Bresenham method
+        # 
         
-        print(path)
+        #print("Path after removing points using bresenham")
+        path = combine_segments_bresenham(path, grid)      
+        #print(path)
         
         # TODO (if you're feeling ambitious): Try a different approach altogether!
 
